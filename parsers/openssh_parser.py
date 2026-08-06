@@ -13,12 +13,31 @@ USER_PATTERNS = {
     'session_closed': re.compile(r'(?<=session\s(?:closed|opened)\sfor\suser\s)\S+')
 }
 
+def timestamp_capture(log_line):
+    timestamp_match = TIMESTAMP_PATTERN.search(log_line)
+            
+    if timestamp_match:
+        return timestamp_match.group()         
+
+def ip_capture(log_line):
+    ip_match = IP_PATTERN.search(log_line)
+    
+    if ip_match:
+        ip = ip_match.group()
+        try:
+            ipaddress.IPv4Address(ip)
+            return ip
+        except ipaddress.AddressValueError:
+            return None
+    else:
+        return None       
+
 def user_capture(log_line):
     for pattern in USER_PATTERNS.values():
         match = pattern.search(log_line)
+
         if match:
             return match.group()
-
 
 total = 0
 first_timestamp = None
@@ -30,27 +49,21 @@ users = {}
 with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
         total += 1
-        timestamp_match = TIMESTAMP_PATTERN.search(line)
-        ip_match = IP_PATTERN.search(line)
 
-        if timestamp_match:
-            timestamp = timestamp_match.group()
-            if first_timestamp is None:
-                first_timestamp = timestamp          
-            last_timestamp = timestamp
+        timestamp = timestamp_capture(line)
+        if first_timestamp is None:
+                first_timestamp = timestamp  
+        last_timestamp = timestamp
 
-        if ip_match:
-            ip = ip_match.group()
-            try:
-                ipaddress.IPv4Address(ip)
-                ips[ip] = ips.get(ip, 0) + 1
-            except ipaddress.AddressValueError:
-                continue
+        ip = ip_capture(line)
+        if ip:
+            ips[ip] = ips.get(ip, 0) + 1 
         else:
             lines_without_ip += 1
 
         user = user_capture(line)
-        users[user] = users.get(user, 0) + 1
+        if user: 
+            users[user] = users.get(user, 0) + 1
 
 print(f'Total of lines: {total}')
 print(f'First timestamp: {first_timestamp}')
