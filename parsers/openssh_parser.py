@@ -13,6 +13,13 @@ USER_PATTERNS = {
     'session_closed': re.compile(r'(?<=session\s(?:closed|opened)\sfor\suser\s)\S+')
 }
 
+EVENT_PATTERN = {
+    'accepted': re.compile(r'Accepted\spassword'),
+    'failure': re.compile(r'failures?(?:\sfor|;\slogname)'),
+    'failed': re.compile(r'Failed', re.IGNORECASE),
+    'invalid': re.compile(r'Invalid\suser', re.IGNORECASE)
+}
+
 def timestamp_capture(log_line):
     timestamp_match = TIMESTAMP_PATTERN.search(log_line)
             
@@ -34,10 +41,20 @@ def ip_capture(log_line):
 
 def user_capture(log_line):
     for pattern in USER_PATTERNS.values():
-        match = pattern.search(log_line)
+        user_match = pattern.search(log_line)
 
-        if match:
-            return match.group()
+        if user_match:
+            return user_match.group()
+
+def event_type_capture(log_line):
+    for event_type, pattern in EVENT_PATTERN.items():
+        type_pattern_match = pattern.search(log_line)
+
+        if type_pattern_match: 
+            return event_type
+        
+    return 'Other'
+
 
 total = 0
 first_timestamp = None
@@ -45,6 +62,7 @@ last_timestamp = None
 ips = {}
 lines_without_ip = 0
 users = {}
+
 
 with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
@@ -65,10 +83,19 @@ with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
         if user: 
             users[user] = users.get(user, 0) + 1
 
+        event = event_type_capture(line)
+        print(event)
+
+ips = sorted(
+    ips.items(),
+    key=lambda item: item[1],
+    reverse=True
+)
+
 print(f'Total of lines: {total}')
 print(f'First timestamp: {first_timestamp}')
 print(f'Last timestamp: {last_timestamp}')
-for ip, counter in ips.items():
+for ip, counter in ips:
     print(f'{ip}: {counter}')
 print(f'Lines without IP: {lines_without_ip}')
 print(users)
