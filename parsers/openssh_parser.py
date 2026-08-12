@@ -15,9 +15,10 @@ USER_PATTERNS = {
 
 EVENT_PATTERN = {
     'accepted': re.compile(r'Accepted\spassword'),
+    'invalid': re.compile(r'Invalid\suser', re.IGNORECASE),
     'failure': re.compile(r'failures?(?:\sfor|;\slogname)'),
     'failed': re.compile(r'Failed', re.IGNORECASE),
-    'invalid': re.compile(r'Invalid\suser', re.IGNORECASE)
+    'repeated': re.compie(r'\bmessage\srepeated\s(\d+)')
 }
 
 def timestamp_capture(log_line):
@@ -55,6 +56,20 @@ def event_type_capture(log_line):
         
     return 'Other'
 
+def record_attempts(ip, user, event_type, timestamp, password_attempts):
+    if event_type not in ('failed', 'repeated'):
+        return
+    
+    if ip not in password_attempts:
+        password_attempts[ip] = []
+
+    password_attempts[ip].append({
+        'user': user,
+        'timestamp': timestamp,
+        'event': event_type
+    })
+
+
 
 total = 0
 first_timestamp = None
@@ -62,7 +77,9 @@ last_timestamp = None
 ips = {}
 lines_without_ip = 0
 users = {}
+password_attempts = {}
 
+BRUTE_FORCE_THRESHOLD = 5
 
 with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
@@ -84,17 +101,17 @@ with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
             users[user] = users.get(user, 0) + 1
 
         event = event_type_capture(line)
-        print(event)
+        if ip:
+            record_attempts(ip, user, event, timestamp, password_attempts)
 
-ips = sorted(
-    ips.items(),
-    key=lambda item: item[1],
-    reverse=True
-)
+for ip, attempts in password_attempts.items():
+    if len(attempts) >= BRUTE_FORCE_THRESHOLD:
+        print(f'Possible brute force attempt from {ip}: {len(attempts)} failed attempts')
 
 print(f'Total of lines: {total}')
 print(f'First timestamp: {first_timestamp}')
 print(f'Last timestamp: {last_timestamp}')
+ips = sorted(ips.items(), key=lambda item: item[1], reverse=True)
 for ip, counter in ips:
     print(f'{ip}: {counter}')
 print(f'Lines without IP: {lines_without_ip}')
