@@ -1,5 +1,6 @@
 import re
 import ipaddress
+from datetime import datetime, timedelta
 
 TIMESTAMP_PATTERN = re.compile(r'\w{3}\s\d{2}\s\d{2}:\d{2}:\d{2}')
 IP_PATTERN = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
@@ -17,8 +18,8 @@ EVENT_PATTERN = {
     'accepted': re.compile(r'Accepted\spassword'),
     'invalid': re.compile(r'Invalid\suser', re.IGNORECASE),
     'failure': re.compile(r'failures?(?:\sfor|;\slogname)'),
-    'failed': re.compile(r'Failed', re.IGNORECASE),
-    'repeated': re.compie(r'\bmessage\srepeated\s(\d+)')
+    'repeated': re.compile(r'\bmessage\srepeated\s(\d+)'),
+    'failed': re.compile(r'Failed', re.IGNORECASE)
 }
 
 def timestamp_capture(log_line):
@@ -52,22 +53,39 @@ def event_type_capture(log_line):
         type_pattern_match = pattern.search(log_line)
 
         if type_pattern_match: 
-            return event_type
+            return event_type, type_pattern_match
         
     return 'Other'
 
 def record_attempts(ip, user, event_type, timestamp, password_attempts):
-    if event_type not in ('failed', 'repeated'):
+    repeating = 1
+    if event_type[0] not in ('failed', 'repeated'):
         return
     
     if ip not in password_attempts:
         password_attempts[ip] = []
 
-    password_attempts[ip].append({
-        'user': user,
-        'timestamp': timestamp,
-        'event': event_type
-    })
+    if event_type[0] == 'repeated':
+        repeating = int(event_type[1].group(1))
+
+    while repeating != 0:
+        password_attempts[ip].append({
+            'user': user,
+            'timestamp': timestamp,
+            'event': event_type
+        })
+        repeating -= 1
+
+def diference_timestamps(timestamp1: str, timestamp2: str) -> float:
+    timestamp_format = "%b %d %H:%M:%S"
+
+    first_ocurrence = datetime.strptime(timestamp1, timestamp_format)
+    last_ocurrence = datetime.strptime(timestamp2, timestamp_format)
+
+    if last_ocurrence < first_ocurrence:
+        last_ocurrence = last_ocurrence.replace(year=first_ocurrence.year + 1)
+
+    return (last_ocurrence - first_ocurrence).total_seconds()
 
 
 
@@ -80,6 +98,7 @@ users = {}
 password_attempts = {}
 
 BRUTE_FORCE_THRESHOLD = 5
+BRUTE_FORCE_TIME_THRESHOLD = 60
 
 with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
@@ -101,6 +120,7 @@ with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
             users[user] = users.get(user, 0) + 1
 
         event = event_type_capture(line)
+
         if ip:
             record_attempts(ip, user, event, timestamp, password_attempts)
 
@@ -116,3 +136,5 @@ for ip, counter in ips:
     print(f'{ip}: {counter}')
 print(f'Lines without IP: {lines_without_ip}')
 print(users)
+
+print(password_attempts.items())
