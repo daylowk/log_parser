@@ -38,11 +38,11 @@ USER_PATTERNS = {
 }
 
 EVENT_PATTERN = {
-    'accepted': re.compile(r'Accepted\spassword'),
-    'invalid': re.compile(r'Invalid\suser', re.IGNORECASE),
-    'failure': re.compile(r'failures?(?:\sfor|;\slogname)'),
+    'accepted password': re.compile(r'Accepted\spassword'),
+    'invalid user': re.compile(r'Invalid\suser', re.IGNORECASE),
+    'failure warning': re.compile(r'failures?(?:\sfor|;\slogname)'),
     'repeated': re.compile(r'\bmessage\srepeated\s(\d+)'),
-    'failed': re.compile(r'Failed', re.IGNORECASE)
+    'failed password': re.compile(r'Failed')
 }
 
 def timestamp_capture(log_line):
@@ -155,7 +155,7 @@ with open(args.logfile, 'r') as log_file:
         event_type, event_match = event_type_capture(line)
         if event_type != 'Other':
             if event_type == 'repeated':
-                events['failed'] = events.get('failed', 0) + int(event_match.group(1))
+                events['failed password'] = events.get('failed password', 0) + int(event_match.group(1))
                 users[user] = users.get(user) + int(event_match.group(1)) - 1
             else:
                 events[event_type] = events.get(event_type, 0) + 1
