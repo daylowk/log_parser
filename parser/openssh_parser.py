@@ -1,6 +1,7 @@
 import re
 import ipaddress
 import argparse
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -14,6 +15,13 @@ parser.add_argument(
     type=int,
     default=5,
     help='Number of top IPs and users to display.'
+)
+parser.add_argument(
+    '-o',
+    '--output',
+    choices=['text', 'json'],
+    default='text',
+    help='Output format.'
 )
 args = parser.parse_args()
 
@@ -73,35 +81,49 @@ def event_type_capture(log_line):
 
     return 'Other', None
 
-def display_results(total: int, first_timestamp: str, last_timestamp:str, ips: dict, lines_without_ip: int, users:dict, events: dict):
+def build_results(total: int, first_timestamp: str, last_timestamp:str, ips: dict, lines_without_ip: int, users:dict, events: dict):
     ips = sorted(ips.items(), key=lambda item: item[1], reverse=True)
     users = sorted(users.items(), key=lambda item: item[1], reverse=True)
 
+    return {
+        'total_lines': total,
+        'first_timestamp': first_timestamp,
+        'last_timestamp': last_timestamp,
+        'lines_without_ip': lines_without_ip,
+        'top_ips': dict(ips[:args.top]),
+        'top_users': dict(users[:args.top]),
+        'events': events
+    }
+
+def display_text(results):
     print('========================================')
     print('OpenSSH Log Parser')
     print('========================================')
     print()
     print('Log Information')
     print('----------------------------------------')
-    print(f'Total lines: {total}')
-    print(f'First Timestamp: {first_timestamp}')
-    print(f'Last timestamp: {last_timestamp}')
-    print(f'Lines without IP: {lines_without_ip}')
+    print(f'Total lines: {results['total_lines']}')
+    print(f'First Timestamp: {results['first_timestamp']}')
+    print(f'Last timestamp: {results['last_timestamp']}')
+    print(f'Lines without IP: {results['lines_without_ip']}')
     print()
     print('Top IP addresses')
     print('----------------------------------------')
-    for ip, counter in ips[:args.top]:
+    for ip, counter in results['top_ips'].items():
         print(f'{ip}: {counter}')
     print()
     print('Top Users')
     print('----------------------------------------')
-    for user, counter in users[:args.top]:
+    for user, counter in results['top_users'].items():
             print(f'{user}: {counter}')
     print()
     print('Event Types')
     print('----------------------------------------')
-    for event, counter in list(events.items()):
+    for event, counter in results['events'].items():
         print(f'{event}: {counter}')
+
+def display_json(results):
+    print(json.dumps(results, indent=4))
 
 total = 0
 first_timestamp = None
@@ -138,4 +160,9 @@ with open(args.logfile, 'r') as log_file:
             else:
                 events[event_type] = events.get(event_type, 0) + 1
 
-display_results(total, first_timestamp, last_timestamp, ips, lines_without_ip, users, events)
+results = build_results(total, first_timestamp, last_timestamp, ips, lines_without_ip, users, events)
+
+if args.output == 'json':
+    display_json(results)
+else:
+    display_text(results)
