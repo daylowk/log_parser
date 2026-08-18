@@ -52,9 +52,10 @@ def event_type_capture(log_line):
         type_pattern_match = pattern.search(log_line)
 
         if type_pattern_match:
+            
             return event_type, type_pattern_match
 
-    return 'Other'
+    return 'Other', None
 
 def display_results(total, first_timestamp, last_timestamp, ips: dict, lines_without_ip, users:dict):
     ips = sorted(ips.items(), key=lambda item: item[1], reverse=True)
@@ -74,12 +75,17 @@ def display_results(total, first_timestamp, last_timestamp, ips: dict, lines_wit
     print('Top IP addresses')
     print('----------------------------------------')
     for ip, counter in ips[:5]:
-        print(ip, counter)
+        print(f'{ip}: {counter}')
     print()
-    print('Users')
+    print('Top Users')
     print('----------------------------------------')
     for user, counter in users[:5]:
-            print(user, counter)
+            print(f'{user}: {counter}')
+    print()
+    print('Event Types')
+    print('----------------------------------------')
+    for event, counter in list(events.items()):
+        print(f'{event}: {counter}')
 
 total = 0
 first_timestamp = None
@@ -87,6 +93,7 @@ last_timestamp = None
 ips = {}
 lines_without_ip = 0
 users = {}
+events = {}
 
 with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
@@ -107,6 +114,12 @@ with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
         if user: 
             users[user] = users.get(user, 0) + 1
 
-        event = event_type_capture(line)
+        event_type, event_match = event_type_capture(line)
+        if event_type != 'Other':
+            if event_type == 'repeated':
+                events['failed'] = events.get('failed', 0) + int(event_match.group(1))
+                users[user] = users.get(user) + int(event_match.group(1)) - 1
+            else:
+                events[event_type] = events.get(event_type, 0) + 1
 
 display_results(total, first_timestamp, last_timestamp, ips, lines_without_ip, users)
