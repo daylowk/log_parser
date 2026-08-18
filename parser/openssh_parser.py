@@ -95,7 +95,7 @@ lines_without_ip = 0
 users = {}
 events = {}
 
-with open('log_samples/OpenSSH_2k.log', 'r') as log_file:
+with open('log_sample/OpenSSH_2k.log', 'r') as log_file:
     for line in log_file:
         total += 1
 
