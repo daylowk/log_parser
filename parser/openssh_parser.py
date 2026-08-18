@@ -1,5 +1,21 @@
 import re
 import ipaddress
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    'logfile',
+    metavar='LOGFILE',
+    help='Path to the OpenSSH log file.'
+)
+parser.add_argument(
+    '-t',
+    '--top',
+    type=int,
+    default=5,
+    help='Number of top IPs and users to display.'
+)
+args = parser.parse_args()
 
 TIMESTAMP_PATTERN = re.compile(r'\w{3}\s\d{2}\s\d{2}:\d{2}:\d{2}')
 IP_PATTERN = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
@@ -57,7 +73,7 @@ def event_type_capture(log_line):
 
     return 'Other', None
 
-def display_results(total, first_timestamp, last_timestamp, ips: dict, lines_without_ip, users:dict):
+def display_results(total: int, first_timestamp: str, last_timestamp:str, ips: dict, lines_without_ip: int, users:dict, events: dict):
     ips = sorted(ips.items(), key=lambda item: item[1], reverse=True)
     users = sorted(users.items(), key=lambda item: item[1], reverse=True)
 
@@ -74,12 +90,12 @@ def display_results(total, first_timestamp, last_timestamp, ips: dict, lines_wit
     print()
     print('Top IP addresses')
     print('----------------------------------------')
-    for ip, counter in ips[:5]:
+    for ip, counter in ips[:args.top]:
         print(f'{ip}: {counter}')
     print()
     print('Top Users')
     print('----------------------------------------')
-    for user, counter in users[:5]:
+    for user, counter in users[:args.top]:
             print(f'{user}: {counter}')
     print()
     print('Event Types')
@@ -95,7 +111,7 @@ lines_without_ip = 0
 users = {}
 events = {}
 
-with open('log_sample/OpenSSH_2k.log', 'r') as log_file:
+with open(args.logfile, 'r') as log_file:
     for line in log_file:
         total += 1
 
@@ -122,4 +138,4 @@ with open('log_sample/OpenSSH_2k.log', 'r') as log_file:
             else:
                 events[event_type] = events.get(event_type, 0) + 1
 
-display_results(total, first_timestamp, last_timestamp, ips, lines_without_ip, users)
+display_results(total, first_timestamp, last_timestamp, ips, lines_without_ip, users, events)
