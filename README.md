@@ -1,4 +1,4 @@
-# OpenSSH Log Parser
+    # OpenSSH Log Parser
 
 This is a command-line tool for analyzing OpenSSH logs and extracting information such as IP addresses, users and event types.
 
@@ -80,5 +80,6 @@ accepted password: 1
 
 ## Credits and Notes
 
-This parser was designed for OpenSSH logs following the format in log_sample/OpenSSH_2k.log_templates.csv
-The OpenSSH log sample and template used for development and testing was obtained from LogPAI, Loghub (https://github.com/logpai/loghub)
+- This parser was designed for OpenSSH logs following the format in log_sample/OpenSSH_2k.log_templates.csv.
+
+- The OpenSSH log sample and template used for development and testing was obtained from LogPAI, Loghub (https://github.com/logpai/loghub)
