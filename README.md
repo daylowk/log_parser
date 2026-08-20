@@ -1,4 +1,4 @@
-    # OpenSSH Log Parser
+# OpenSSH Log Parser
 
 This is a command-line tool for analyzing OpenSSH logs and extracting information such as IP addresses, users and event types.
 
